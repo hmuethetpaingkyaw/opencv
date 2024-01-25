@@ -1,0 +1,185 @@
+<html>
+<head>
+    <link href="https://unpkg.com/tailwindcss@^2/dist/tailwind.min.css" rel="stylesheet">
+</head>
+<body>
+    <div id="app" class="p-3">
+        <h1 class="font-bold">ななめに写った文書をピッタリにするサンプル</h1>
+        <hr class="my-3">
+        <div v-if="!initialized">
+            opencvを準備中です...しばらくお待ちください。
+        </div>
+        <div v-else>
+            <input type="file" accept="image/*" @change="onFileChange">
+            <div class="pt-3" v-if="imageData">
+                <img id="image" class="float-left" :src="imageData" v-if="imageData">
+                <canvas id="outputCanvas"></canvas>
+            </div>
+            <div class="pt-3 clear-both" v-if="imageData">
+                <button type="button" class="bg-indigo-500 text-indigo-50 p-2 rounded mb-3" @click="transform">歪みを修正する</button>
+            </div>
+        </div>
+    </div>
+    <div style="padding-top:30px;">
+    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1552569385631981"
+            crossorigin="anonymous"></script>
+    <!-- demo-laravel-8x -->
+    <ins class="adsbygoogle"
+         style="display:block"
+         data-ad-client="ca-pub-1552569385631981"
+         data-ad-slot="8980271080"
+         data-ad-format="auto"
+         data-full-width-responsive="true"></ins>
+    <script>
+        (adsbygoogle = window.adsbygoogle || []).push({});
+    </script>
+
+</div>
+    <script src="https://unpkg.com/vue@3.0.2/dist/vue.global.prod.js"></script>
+    <script src="https://docs.opencv.org/4.5.2/opencv.js"></script>
+    <script>
+
+        Vue.createApp({
+            data() {
+                return {
+                    initialized: false,
+                    imageData: './images/document_sm.jpg',
+                    MIN_CONTOURS_SCALE: 20, // 最低元画像比率
+                    THRESHOLD: 170, // モノクロのしきい値
+                }
+            },
+            methods: {
+                onFileChange(e) {
+
+                    const files = e.target.files;
+
+                    if(files.length > 0) {
+
+                        const file = files[0];
+                        const reader = new FileReader();
+                        reader.onload = (e) => {
+
+                            this.imageData = e.target.result;
+
+                        };
+                        reader.readAsDataURL(file);
+
+                    }
+
+                },
+
+                // opencv
+                transform() {
+
+                    const imageElement = document.querySelector('#image');
+                    console.log(imageElement);
+                    const im = cv.imread(imageElement);
+                    console.log(im)
+                    const pts = this.getContoursPoints(im);
+
+                    if(pts) {
+
+                        const transformedIm = this.getTransformedImage(im, pts);
+                        cv.imshow('outputCanvas', transformedIm);
+                        console.log('Done!');
+
+                    } else {
+
+                        console.log('Failed...');
+
+                    }
+
+                    im.delete();
+
+                },
+                getContoursPoints(im) {
+
+                    // Image area
+                    const imRectArea = im.cols * im.rows // 元画像の面積
+
+                    // Grayscale
+                    let im_gray = new cv.Mat();
+                    cv.cvtColor(im, im_gray, cv.COLOR_RGBA2GRAY);
+
+                    // Threshold
+                    let threshold_im = new cv.Mat();
+                    cv.threshold(im_gray, threshold_im, this.THRESHOLD, 255, cv.THRESH_BINARY);
+
+                    // Contours
+                    let contours = new cv.MatVector();
+                    let hierarchy = new cv.Mat();
+                    cv.findContours(threshold_im, contours, hierarchy, cv.RETR_CCOMP, cv.CHAIN_APPROX_SIMPLE);
+                    hierarchy.delete();
+
+                    let pts = null;
+                    let maxCntArea = 0
+
+                    for(let i = 0; i < contours.size(); ++i) {
+
+                        let cnt = contours.get(i);
+                        const cntArea = cv.contourArea(cnt)
+                        const maxRectScale = parseInt(cntArea / imRectArea * 100) // 元画像と比べてどれぐらいの大きさか（％）
+
+                        if(maxRectScale >= this.MIN_CONTOURS_SCALE) { // 元画像との比率でフィルター
+
+                            if(cntArea > maxCntArea) { // より大きいものをキープ
+
+                                let approx = new cv.Mat();
+                                const epsilon = 0.02 * cv.arcLength(cnt, true)
+                                cv.approxPolyDP(cnt, approx, epsilon, true)
+
+                                if(approx.size().height === 4) { // 四角形ならキープ
+
+                                    maxCntArea = cntArea;
+                                    pts = approx // 切り抜くべき四角形の座標（4点）
+
+                                }
+
+                            }
+
+                        }
+
+                    }
+
+                    contours.delete();
+                    im_gray.delete();
+                    threshold_im.delete();
+                    pts.convertTo(pts, cv.CV_32FC2);
+
+                    return pts;
+
+                },
+
+                getTransformedImage(im, fromPts) {
+
+                    let transformedIm = new cv.Mat();
+                    const rows = im.rows;
+                    const cols = im.cols;
+                    let dsize = new cv.Size(cols, rows);
+                    const toPts = cv.matFromArray(4, 1, cv.CV_32FC2, [
+                        cols, 0, 0, 0, 0, rows, cols, rows
+                    ]);
+                    const M = cv.getPerspectiveTransform(fromPts, toPts); // 変形の行列
+                    cv.warpPerspective(im, transformedIm, M, dsize);
+
+                    fromPts.delete();
+                    toPts.delete();
+                    return transformedIm;
+
+                }
+
+            },
+            mounted() {
+
+                cv['onRuntimeInitialized'] = () => {
+
+                    this.initialized = true;
+
+                };
+
+            }
+        }).mount('#app');
+
+    </script>
+</body>
+</html>
