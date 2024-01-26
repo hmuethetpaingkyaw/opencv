@@ -108,6 +108,7 @@ function OpenCVReact() {
       rows,
     ]);
     const M = cv.getPerspectiveTransform(fromPts, toPts);
+    console.log(fromPts, toPts);
     cv.warpPerspective(im, transformedIm, M, dsize);
 
     fromPts.delete();
