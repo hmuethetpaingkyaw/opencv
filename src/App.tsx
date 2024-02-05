@@ -1,8 +1,8 @@
 import { useState, useRef } from "react";
-import {  useOpenCv } from 'opencv-react'
+import { useOpenCv } from "opencv-react";
 
 function OpenCVReact() {
-  const { loaded, cv } = useOpenCv()
+  const { loaded, cv } = useOpenCv();
   const [imageData, setImageData] = useState("");
 
   const MIN_CONTOURS_SCALE = 20;
@@ -28,28 +28,30 @@ function OpenCVReact() {
     //const imageElement = imageRef.current;
 
     const imageElement = document.getElementById("image");
-      const im = cv.imread(imageElement);
-      const pts = getContoursPoints(im);
+    const im = cv.imread(imageElement);
 
-      if (pts) {
-        const transformedIm = getTransformedImage(im, pts);
-        cv.imshow("outputCanvas", transformedIm);
-        console.log("Done!");
-      } else {
-        console.log("Failed...");
-      }
+    const pts = getContoursPoints(im);
 
-      im.delete();
-    
+    // if (pts) {
+      const transformedIm = getTransformedImage(im);
+  // cv.imshow("outputCanvas", transformedIm);
+      console.log("Done!");
+    // } else {
+    //   console.log("Failed...");
+    // }
+
+    im.delete();
   };
 
   const getContoursPoints = (im) => {
     const imRectArea = im.cols * im.rows;
     let im_gray = new cv.Mat();
-    cv.cvtColor(im, im_gray, cv.COLOR_RGBA2GRAY);
+    cv.cvtColor(im, im_gray, cv.COLOR_RGBA2GRAY, 0);
 
     let threshold_im = new cv.Mat();
     cv.threshold(im_gray, threshold_im, THRESHOLD, 255, cv.THRESH_BINARY);
+
+    cv.imshow("outputCanvas", threshold_im);
 
     let contours = new cv.MatVector();
     let hierarchy = new cv.Mat();
@@ -87,16 +89,19 @@ function OpenCVReact() {
     contours.delete();
     im_gray.delete();
     threshold_im.delete();
-    pts.convertTo(pts, cv.CV_32FC2);
+    pts?.convertTo(pts, cv.CV_32FC2);
 
     return pts;
   };
 
-  const getTransformedImage = (im, fromPts) => {
+  const getTransformedImage = (im) => {
     let transformedIm = new cv.Mat();
     const rows = im.rows;
     const cols = im.cols;
+    console.log(rows, cols);
     let dsize = new cv.Size(cols, rows);
+    const fromPoint = [387, 130, 383, 480, 572, 572, 565, 232]
+    const fromPts = cv.matFromArray(4, 1, cv.CV_32FC2, fromPoint);
     const toPts = cv.matFromArray(4, 1, cv.CV_32FC2, [
       cols,
       0,
@@ -108,7 +113,8 @@ function OpenCVReact() {
       rows,
     ]);
     const M = cv.getPerspectiveTransform(fromPts, toPts);
-    console.log(fromPts, toPts);
+    console.log(M);
+  //  console.log(fromPts.data, toPts.data);
     cv.warpPerspective(im, transformedIm, M, dsize);
 
     fromPts.delete();
@@ -116,8 +122,8 @@ function OpenCVReact() {
     return transformedIm;
   };
 
-  if(!cv) {
-    <p>loading...</p>
+  if (!cv) {
+    <p>loading...</p>;
   }
 
   return (
@@ -161,6 +167,5 @@ function OpenCVReact() {
     </div>
   );
 }
-
 
 export default OpenCVReact;
