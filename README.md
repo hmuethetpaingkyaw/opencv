@@ -67,3 +67,41 @@
 12. hierarchy.delete();
     Purpose: Deletes the memory occupied by the hierarchy matrix.
     Note: Similar to im.delete(), it's essential to manage memory for matrices that are no longer needed.
+
+Source data - wall corners, window corners, input image
+des data - window width, height
+perspective data with ratio
+
+calculate matrix
+parameters - source data, destination data
+return - get src array and dst array , then return matrix
+
+perspectiveTransform 
+call cv perspectivTransform with input points and calculated matrix 
+
+calculate ratio 
+calculated point , width, height = perspectiveTransform points 
+correct width, height = des data window width, height 
+
+warpPerspective 
+des size = source data input image shape 
+return output img 
+
+showResultWithoutPoints 
+just use imshow 
+
+showResultWithPoints
+
+# mat from array 
+points - top left, top right, bottom right, bottom left 
+
+# Draw a rectangle with blue line borders of thickness of 2 px 
+image = cv2.rectangle(image, start_point, end_point, color, thickness) 
+
+# Start coordinate, here (5, 5) 
+# represents the top left corner of rectangle 
+start_point = (5, 5) 
+  
+# Ending coordinate, here (220, 220) 
+# represents the bottom right corner of rectangle 
+end_point = (220, 220) 

@@ -3,11 +3,12 @@ import ReactDOM from "react-dom/client";
 import App from "./App.tsx";
 import "./index.css";
 import { OpenCvProvider } from "opencv-react";
+import PerspectiveTransform from "./PerspectiveTransform.tsx";
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     <OpenCvProvider>
-      <App />
+      <PerspectiveTransform />
     </OpenCvProvider>
   </React.StrictMode>
 );
