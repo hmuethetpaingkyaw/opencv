@@ -54,8 +54,8 @@ function Testing() {
     const point1 = fPoints[0][0];
     const point2 = fPoints[0][1];
     const dst_origin = [point1, point2];
-    const dst_width = calculateNorm(fPoints[1] , fPoints[0]);
-    const dst_height = calculateNorm(fPoints[3] , fPoints[0]);
+    const dst_width = calculateNorm(fPoints[1], fPoints[0]);
+    const dst_height = calculateNorm(fPoints[3], fPoints[0]);
     const newWidth = point1 + dst_width;
     const newHeight = point2 + dst_height;
 
@@ -85,6 +85,24 @@ function Testing() {
     cv.imshow("outputCanvas", dst);
     dst.delete();
     im.delete();
+  };
+
+  const handleDrawCircles = (points) => {
+    const radius = 10;
+    const imageElement = document.getElementById("image");
+    const im = cv.imread(imageElement);
+    const displayMat = im.clone();
+    points.forEach((point) => {
+      const x = point[0];
+      const y = point[1];
+      const center = new cv.Point(x, y);
+      cv.circle(displayMat, center, radius, [255,0,0,255], cv.FILLED, 5);
+    });
+
+    cv.imshow("outputCanvas", displayMat);
+
+    im.delete();
+    displayMat.delete();
   };
 
   if (!cv) {
@@ -117,9 +135,31 @@ function Testing() {
                 const x = event.clientX;
                 const y = event.clientY;
                 setPoints([...points, [x, y]]);
+                handleDrawCircles([...points, [x, y]]);
               }}
             />
-
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke-width="1.5"
+              stroke="currentColor"
+              style={{
+                width: "50px",
+                height: "50px",
+              }}
+              onClick={() => {
+                points.pop();
+                setPoints(points);
+                handleDrawCircles(points);
+              }}
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                d="M9 15 3 9m0 0 6-6M3 9h12a6 6 0 0 1 0 12h-3"
+              />
+            </svg>
             <canvas
               id="outputCanvas"
               onClick={(event) => {
