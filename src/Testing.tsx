@@ -6,8 +6,9 @@ function Testing() {
   const [imageData, setImageData] = useState("");
   const [points, setPoints] = useState([]);
   const [dstpoints, setdstPoints] = useState([]);
+  const [windowPoints, setWindowPoints] = useState([]);
 
-  console.log(points, dstpoints);
+  console.log("point", points, "window", windowPoints);
 
   const appRef = useRef(null);
   const imageRef = useRef(null);
@@ -33,28 +34,15 @@ function Testing() {
       0
     );
     const norm = Math.sqrt(sumSquaredDifference);
-    console.log(norm);
+    // console.log(norm);
     return norm;
   };
 
-  const transform = () => {
-    //const imageElement = imageRef.current;
-
-    const imageElement = document.getElementById("image");
-    const im = cv.imread(imageElement);
-
-    const fPoints = points;
-
-    //       height
-    // :
-    // 767
-    // width
-    // :
-    // 574
+  const calculateMatrix = (fPoints, ratio = 1.0) => {
     const point1 = fPoints[0][0];
     const point2 = fPoints[0][1];
     const dst_origin = [point1, point2];
-    const dst_width = calculateNorm(fPoints[1], fPoints[0]);
+    const dst_width = calculateNorm(fPoints[1], fPoints[0]) * ratio;
     const dst_height = calculateNorm(fPoints[3], fPoints[0]);
     const newWidth = point1 + dst_width;
     const newHeight = point2 + dst_height;
@@ -72,15 +60,60 @@ function Testing() {
       cv.CV_32FC2,
       tPoints.flat()
     );
-    const dst = new cv.Mat();
-    const dsize = new cv.Size(im.width, im.height);
 
     // rows,cols,type,array
     const perspectiveMatrix = cv.getPerspectiveTransform(
       sourceMatric,
       destinationMatric
     );
-    cv.warpPerspective(im, dst, perspectiveMatrix, dsize);
+
+    return perspectiveMatrix;
+  };
+
+  const calculateRatio = (points, perspectiveMatrix) => {
+    const windowMatric = cv.matFromArray(
+      4,
+      1,
+      cv.CV_32FC2,
+      points.flat()
+    );
+    const testMatric = cv.matFromArray(4, 1, cv.CV_32FC2, []);
+
+    cv.perspectiveTransform(windowMatric, testMatric, perspectiveMatrix);
+    console.log("test", testMatric.data32F);
+    const points_calculated = testMatric.data32F;
+    const points1 = [points_calculated[0], points_calculated[1]];
+    const points2 = [points_calculated[2], points_calculated[3]];
+    const points3 = [points_calculated[4], points_calculated[5]];
+    const points4 = [points_calculated[6], points_calculated[7]];
+
+    const points_width = calculateNorm(points2, points1);
+    const points_height = calculateNorm(points3, points1);
+
+    console.log("width", points_width, "height", points_height);
+    const calculated_ratio = (points_height / points_width) * (100 / 130);
+
+    return calculated_ratio;
+  }
+
+  const transform = () => {
+    //const imageElement = imageRef.current;
+
+    const imageElement = document.getElementById("image");
+    const im = cv.imread(imageElement);
+
+    const fPoints = points;
+    const perspectiveMatrix = calculateMatrix(fPoints);
+    const calculated_ratio = calculateRatio(windowPoints, perspectiveMatrix);
+   
+    console.log("ratio", calculated_ratio);
+
+    const re_perspectiveMatrix = calculateMatrix(fPoints, 1.6);
+
+    const dst = new cv.Mat();
+    const {width, height } = im.size();
+    const dsize = new cv.Size(width * 2.0 , height * 2.0);
+    cv.warpPerspective(im, dst, re_perspectiveMatrix, dsize);
 
     cv.imshow("outputCanvas", dst);
     dst.delete();
@@ -96,7 +129,7 @@ function Testing() {
       const x = point[0];
       const y = point[1];
       const center = new cv.Point(x, y);
-      cv.circle(displayMat, center, radius, [255,0,0,255], cv.FILLED, 5);
+      cv.circle(displayMat, center, radius, [255, 0, 0, 255], cv.FILLED, 5);
     });
 
     cv.imshow("outputCanvas", displayMat);
@@ -134,8 +167,12 @@ function Testing() {
               onClick={(event) => {
                 const x = event.clientX;
                 const y = event.clientY;
-                setPoints([...points, [x, y]]);
-                handleDrawCircles([...points, [x, y]]);
+                if (points.length === 4) {
+                  setWindowPoints([...windowPoints, [x, y]]);
+                } else {
+                  setPoints([...points, [x, y]]);
+                }
+                handleDrawCircles([...points, ...windowPoints, [x, y]]);
               }}
             />
             <svg
