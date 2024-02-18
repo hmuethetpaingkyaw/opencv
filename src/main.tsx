@@ -6,11 +6,12 @@ import { OpenCvProvider } from "opencv-react";
 import PerspectiveTransform from "./PerspectiveTransform.tsx";
 import ThreeDAffine from "./3DAffine.tsx";
 import Testing from "./Testing.tsx";
+import CropImage from "./CropImage.tsx";
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     <OpenCvProvider>
-      <Testing />
+      <CropImage />
     </OpenCvProvider>
   </React.StrictMode>
 );
