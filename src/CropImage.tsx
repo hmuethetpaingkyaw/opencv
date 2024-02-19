@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import {  useState } from "react";
 import "./App.css";
 
 import { useOpenCv } from "opencv-react";
@@ -10,12 +10,10 @@ function CropImage() {
   const [hideOriginalImage, setHideOriginalImage] = useState(true);
   const [circlePositions, setCirclePositions] = useState([]);
   const [imageData, setImageData] = useState("");
-  const [transformImgPoints, setTransformImgPoints] = useState(null);
-  const [transformImgPerspectiveMatrix, setTransformImgPerspectiveMatrix] =
-    useState(null);
-  const [transformImgSize, setTransformImgSize] = useState({
-    width: 920,
-    height: 600,
+
+  const [transformImg, setTransformImg] = useState({
+    points: null,
+    size: null,
   });
 
   const handleTransform = () => {
@@ -38,45 +36,6 @@ function CropImage() {
     }
   };
 
-  // const transformImage = () => {
-  //   const imageElement = document.getElementById("image");
-  //   const im = newCv.imread(imageElement);
-
-  //   // use circles points on image instead of points
-  //   let fPoints = circlePositions.slice(0, 4)?.map((obj) => [obj.x, obj.y]);
-  //   fPoints = sortClockwise(fPoints);
-  //   const copiedCirclePositions = circlePositions;
-  //   const windowPoints = copiedCirclePositions
-  //     .splice(0, 4)
-  //     ?.map((obj) => [obj.x, obj.y]);
-
-  //   const { matrix: perspectiveMatrix, destinationPoints: points } =
-  //     calculateMatrix(fPoints);
-  //   const dst = new newCv.Mat();
-  //   const { width, height } = im.size();
-  //   const dsize = new newCv.Size(920, height * 2.0);
-
-  //   const wallSizeRatio = width / calculateNorm(points[1], points[0]) - 1;
-  //   // console.log("wall size ratio" , wallSizeRatio);
-  //   const { ratio: calculatedRatio } = calculateRatio(
-  //     windowPoints,
-  //     wallSizeRatio,
-  //     perspectiveMatrix
-  //   );
-
-  //   // console.log('ratio', calculatedRatio)
-
-  //   const { matrix: recalculatedPerspectiveMatrix, destinationPoints } =
-  //     calculateMatrix(fPoints, calculatedRatio);
-
-  //   newCv.warpPerspective(im, dst, recalculatedPerspectiveMatrix, dsize);
-  //   handleCirclePositions(destinationPoints);
-
-  //   setHideOriginalImage(true);
-  //   newCv.imshow("outputCanvas", dst);
-  //   dst.delete();
-  //   im.delete();
-  // };
   const transformImage = () => {
     const imageElement = document.getElementById("image");
     const im = newCv.imread(imageElement);
@@ -88,27 +47,22 @@ function CropImage() {
     const { matrix: perspectiveMatrix, destinationPoints: points } =
       calculateMatrix(fPoints);
     const dst = new newCv.Mat();
-    const { height } = im.size();
+    const { width, height } = im.size();
     const dsize = new newCv.Size(920, height * 2.0);
 
     newCv.warpPerspective(im, dst, perspectiveMatrix, dsize);
     handleCirclePositions(points);
-    setTransformImgPoints(points);
-    setTransformImgSize({ width: 920, height: height * 2.0 });
-    setTransformImgPerspectiveMatrix(perspectiveMatrix);
+    setTransformImg({
+      points,
+      size: { width: 920, height: height * 2.0 },
+    });
 
     setHideOriginalImage(true);
 
-    const radius = 5;
+    drawCirclesOnCanvas(points?.map((point) => {
+      return {x: point[0], y: point[1]}
+    }), dst)
 
-    points.forEach((point) => {
-      const x = point[0];
-      const y = point[1];
-      const center = new newCv.Point(x, y);
-      newCv.circle(dst, center, radius, [255, 0, 0, 255], newCv.FILLED, 5);
-    });
-
-    newCv.imshow("outputCanvas", dst);
     dst.delete();
     im.delete();
   };
@@ -116,35 +70,30 @@ function CropImage() {
     const imageElement = document.getElementById("outputCanvas");
     const im = newCv.imread(imageElement);
 
+    const windowPoints = [
+      circlePositions[4],
+      circlePositions[5],
+      circlePositions[6],
+    ]?.map((obj) => [obj.x, obj.y]);
 
-    const windowPoints = [circlePositions[4], circlePositions[5], circlePositions[6]]
-      ?.map((obj) => [obj.x, obj.y]);
-
-    const perspectiveMatrix = transformImgPerspectiveMatrix;
-    const points = transformImgPoints;
+    const points = transformImg?.points;
     const dst = new newCv.Mat();
-    const { width, height } = transformImgSize;
+    const { width, height } = transformImg?.size;
     const dsize = new newCv.Size(width, height);
 
     const wallSizeRatio = calculateNorm(points[1], points[0]) / width;
-  
+
     // console.log("wall size ratio" , wallSizeRatio);
-    const { ratio: calculatedRatio } = calculateRatio(
-      windowPoints,
-      wallSizeRatio,
-      perspectiveMatrix
-    );
+    const ratio = calculateRatio(windowPoints, wallSizeRatio);
 
     // console.log('ratio', calculatedRatio)
 
     const { matrix: recalculatedPerspectiveMatrix, destinationPoints } =
-      calculateMatrix(points, calculatedRatio);
+      calculateMatrix(points, ratio);
 
     newCv.warpPerspective(im, dst, recalculatedPerspectiveMatrix, dsize);
     handleCirclePositions(destinationPoints);
 
-    setHideOriginalImage(true);
-    
     newCv.imshow("outputCanvas", dst);
     dst.delete();
     im.delete();
@@ -186,16 +135,7 @@ function CropImage() {
     return { matrix: perspectiveMatrix, destinationPoints: tPoints };
   };
 
-  const calculateRatio = (points, wallSizeRatio, perspectiveMatrix) => {
-    // const fromPoints = newCv.matFromArray(4, 1, newCv.CV_32FC2, points.flat());
-    // const toPoints = newCv.matFromArray(4, 1, newCv.CV_32FC2, []);
-
-    // newCv.perspectiveTransform(fromPoints, toPoints, perspectiveMatrix);
-    // const pointsCalculated = toPoints.data32F;
-    // const points1 = [pointsCalculated[0], pointsCalculated[1]];
-    // const points2 = [pointsCalculated[2], pointsCalculated[3]];
-    // const points3 = [pointsCalculated[4], pointsCalculated[5]];
-    // const points4 = [pointsCalculated[6], pointsCalculated[7]];
+  const calculateRatio = (points, wallSizeRatio) => {
     const points1 = points[0];
     const points2 = points[1];
     const points3 = points[2];
@@ -203,7 +143,7 @@ function CropImage() {
     const pointsWidth = calculateNorm(points2, points1);
     const pointsHeight = calculateNorm(points3, points1);
 
-    console.log("window points" , points);
+    console.log("window points", points);
 
     const { width, height } = calculateWidthAndHeight(points);
     console.log("Width:", width, pointsWidth);
@@ -214,7 +154,7 @@ function CropImage() {
 
     const ratio = (pointsHeight / width) * (windowWidth / windowHeight);
 
-    return { ratio: ratio };
+    return ratio;
   };
 
   const calculateNorm = (vector1, vector2) => {
@@ -258,7 +198,6 @@ function CropImage() {
     setCirclePositions([...circlePositions, newCirclePosition]);
 
     setShowCircle(true);
-    
   };
   const handleDrawCircleOnCanvas = (event) => {
     const newCirclePosition = {
@@ -266,24 +205,28 @@ function CropImage() {
       y: event.clientY - event.currentTarget.getBoundingClientRect().top - 2, // -2 is to manipulate border-radius 4
     };
 
-    setCirclePositions([...circlePositions, newCirclePosition]);
+    const newCirclePositions = [...circlePositions, newCirclePosition];
 
-    setShowCircle(true);
+    setCirclePositions(newCirclePositions);
+
     const imageElement = document.getElementById("outputCanvas");
     const im = newCv.imread(imageElement);
     const dst = im.clone();
+    drawCirclesOnCanvas(newCirclePositions, dst)
+
+    dst.delete()
+  };
+
+  const drawCirclesOnCanvas = (circlePoints, drawImg) => {
     const radius = 5;
 
-    [...circlePositions, newCirclePosition].forEach(({x,y}) => {
-     
+    circlePoints.forEach(({ x, y }) => {
       const center = new newCv.Point(x, y);
-      newCv.circle(dst, center, radius, [255, 0, 0, 255], newCv.FILLED, 5);
+      newCv.circle(drawImg, center, radius, [255, 0, 0, 255], newCv.FILLED, 5);
     });
-
-    newCv.imshow("outputCanvas", dst);
-
+    newCv.imshow("outputCanvas", drawImg);
   };
-  
+
   function sortClockwise(points) {
     // 座標を時計回りにソートする
     points.sort((a, b) => {
@@ -354,15 +297,15 @@ function CropImage() {
           </div>
         )}
 
-        {
-          circlePositions?.length === 7 &&  <button
-          color="primary"
-          onClick={transformCanvas}
-          disabled={circlePositions?.length !== 7}
-        >
-          Apply
-        </button>
-        }
+        {circlePositions?.length === 7 && (
+          <button
+            color="primary"
+            onClick={transformCanvas}
+            disabled={circlePositions?.length !== 7}
+          >
+            Apply
+          </button>
+        )}
         <div
           style={{
             display: "flex",
@@ -371,7 +314,6 @@ function CropImage() {
           }}
           onClick={handleDrawCircleOnCanvas}
         >
-          
           <canvas id="outputCanvas" width="0" height="0"></canvas>
         </div>
       </div>
